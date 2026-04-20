@@ -1,6 +1,6 @@
 # 🔱 Poseidon
 
-> Poseidon — god of the sea, shaker of the earth, destroyer of fleets, commander of storms...
+> Poseidon - god of the sea, shaker of the earth, destroyer of fleets, commander of storms...
 > ...is a phishing simulation platform for security awareness training.
 >
 > Yeah. He traded his trident for an SMTP server. Times are tough.
@@ -32,9 +32,9 @@ If you're unsure whether you have authorization, you don't.
 
 ## Why This Project Exists
 
-Phishing is still the number one attack vector responsible for the majority of breaches. Yet most organizations run zero simulation exercises and have no idea how vulnerable their employees actually are. Poseidon bridges that gap — giving security teams an enterprise-grade awareness training platform without the enterprise price tag.
+Phishing is still the number one attack vector responsible for the majority of breaches. Yet most organizations run zero simulation exercises and have no idea how vulnerable their employees actually are. Poseidon bridges that gap - giving security teams an enterprise-grade awareness training platform without the enterprise price tag.
 
-Honestly? I also just wanted to know how the pros actually do it. Understanding the mechanics of a phishing campaign — tracking pixels, unique redirect links, SMTP spoofing defenses — is the kind of hands-on knowledge you don't get from a textbook. Building the weapon is the fastest way to learn how to defend against it. And if it lands a job along the way, that works too.
+Honestly? I also just wanted to know how the pros actually do it. Understanding the mechanics of a phishing campaign tracking pixels, unique redirect links, SMTP spoofing defenses — is the kind of hands-on knowledge you don't get from a textbook. Building the weapon is the fastest way to learn how to defend against it. And if it lands a job along the way, that works too.
 
 ---
 
