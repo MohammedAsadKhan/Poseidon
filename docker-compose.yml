@@ -17,11 +17,15 @@ services:
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASS=${SMTP_PASS}
       - TRACKER_BASE_URL=${TRACKER_BASE_URL}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.1:8b}
+      - MOCK_AI=${MOCK_AI:-false}
       - RUST_LOG=${RUST_LOG:-info}
     volumes:
       - engine_data:/app/data
     depends_on:
       - postgres
+      - ollama
     networks:
       - poseidon-net
 
@@ -54,6 +58,30 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - poseidon-net
+
+  # ─────────────────────────────────────────
+  # Ollama - local LLM for AI email generation
+  # GPU accelerated on desktop, CPU fallback on laptop
+  # ─────────────────────────────────────────
+  ollama:
+    image: ollama/ollama
+    container_name: poseidon-ollama
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     networks:
       - poseidon-net
 
@@ -123,6 +151,7 @@ volumes:
   prometheus_data:
   loki_data:
   grafana_data:
+  ollama_data:
 
 # ─────────────────────────────────────────
 # Internal network
