@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import Campaigns from "./components/Campaigns";
-import Templates from "./components/Templates";
-import Targets from "./components/Targets";
-import Analytics from "./components/Analytics";
+// import Campaigns from "./components/Campaigns";
+// import Templates from "./components/Templates";
+// import Targets from "./components/Targets";
+// import Analytics from "./components/Analytics";
+
 
 // ─────────────────────────────────────────
 // API base URL from environment
@@ -13,17 +14,17 @@ export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 // Navigation items
 // ─────────────────────────────────────────
 const NAV = [
-  { id: "overview",   label: "Overview",   icon: GridIcon },
-  { id: "campaigns",  label: "Campaigns",  icon: ListIcon },
-  { id: "templates",  label: "Templates",  icon: MailIcon },
-  { id: "targets",    label: "Targets",    icon: UsersIcon },
-  { id: "analytics",  label: "Analytics",  icon: ChartIcon },
+  { id: "overview", label: "Overview", icon: GridIcon },
+  { id: "campaigns", label: "Campaigns", icon: ListIcon },
+  { id: "templates", label: "Templates", icon: MailIcon },
+  { id: "targets", label: "Targets", icon: UsersIcon },
+  { id: "analytics", label: "Analytics", icon: ChartIcon },
 ];
 
 export default function App() {
-  const [page, setPage]           = useState("overview");
+  const [page, setPage] = useState("overview");
   const [engineOnline, setEngine] = useState(null);
-  const [aiStatus, setAiStatus]   = useState(null);
+  const [aiStatus, setAiStatus] = useState(null);
 
   // Poll engine health every 10 seconds
   useEffect(() => {
@@ -74,8 +75,8 @@ export default function App() {
               <div style={{
                 ...styles.statusDot,
                 background: engineOnline === null ? "#EF9F27"
-                          : engineOnline         ? "#639922"
-                          :                        "#E24B4A",
+                  : engineOnline ? "#639922"
+                    : "#E24B4A",
               }} />
               <span style={styles.statusText}>
                 {engineOnline === null ? "checking" : engineOnline ? "online" : "offline"}
@@ -100,11 +101,12 @@ export default function App() {
 
       {/* ── Main content ── */}
       <main style={styles.main}>
-        {page === "overview"  && <Overview setPage={setPage} />}
-        {page === "campaigns" && <Campaigns />}
-        {page === "templates" && <Templates />}
-        {page === "targets"   && <Targets />}
-        {page === "analytics" && <Analytics />}
+        {page === "overview" && <Overview setPage={setPage} />}
+        {page !== "overview" && (
+          <div style={{ padding: 40, fontSize: 14, color: "gray" }}>
+            {page} — coming soon
+          </div>
+        )}
       </main>
     </div>
   );
@@ -123,7 +125,7 @@ function Overview({ setPage }) {
   }, []);
 
   const activeCampaigns = campaigns.filter(c => c.status === "active").length;
-  const totalTargets    = campaigns.reduce((acc, c) => acc + (c.total_targets || 0), 0);
+  const totalTargets = campaigns.reduce((acc, c) => acc + (c.total_targets || 0), 0);
 
   return (
     <div style={styles.page}>
@@ -138,8 +140,8 @@ function Overview({ setPage }) {
       {/* Stat cards */}
       <div style={styles.statGrid}>
         <StatCard label="Active campaigns" value={activeCampaigns} sub="running now" subColor="#3B6D11" />
-        <StatCard label="Total targets"    value={totalTargets.toLocaleString()} sub="across all groups" />
-        <StatCard label="Campaigns"        value={campaigns.length} sub="all time" />
+        <StatCard label="Total targets" value={totalTargets.toLocaleString()} sub="across all groups" />
+        <StatCard label="Campaigns" value={campaigns.length} sub="all time" />
         <StatCard
           label="Engine"
           value="Online"
@@ -237,11 +239,11 @@ export function CampaignTable({ campaigns }) {
 
 export function StatusBadge({ status }) {
   const map = {
-    active:    { bg: "#EAF3DE", color: "#27500A" },
-    draft:     { bg: "#F1EFE8", color: "#444441" },
+    active: { bg: "#EAF3DE", color: "#27500A" },
+    draft: { bg: "#F1EFE8", color: "#444441" },
     completed: { bg: "#E6F1FB", color: "#0C447C" },
-    paused:    { bg: "#FAEEDA", color: "#633806" },
-    archived:  { bg: "#FCEBEB", color: "#791F1F" },
+    paused: { bg: "#FAEEDA", color: "#633806" },
+    archived: { bg: "#FCEBEB", color: "#791F1F" },
   };
   const s = map[status] || map.draft;
   return (
@@ -265,7 +267,7 @@ function QuickCard({ title, desc, onClick }) {
 // ─────────────────────────────────────────
 async function fetchOverview(setCampaigns) {
   try {
-    const res  = await fetch(`${API_URL}/api/campaigns`);
+    const res = await fetch(`${API_URL}/api/campaigns`);
     const data = await res.json();
     if (data.success) setCampaigns(data.data || []);
   } catch {
@@ -280,10 +282,10 @@ function GridIcon({ active }) {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
       stroke={active ? "#185FA5" : "currentColor"} strokeWidth="1.5">
-      <rect x="1" y="1" width="6" height="6" rx="1"/>
-      <rect x="9" y="1" width="6" height="6" rx="1"/>
-      <rect x="1" y="9" width="6" height="6" rx="1"/>
-      <rect x="9" y="9" width="6" height="6" rx="1"/>
+      <rect x="1" y="1" width="6" height="6" rx="1" />
+      <rect x="9" y="1" width="6" height="6" rx="1" />
+      <rect x="1" y="9" width="6" height="6" rx="1" />
+      <rect x="9" y="9" width="6" height="6" rx="1" />
     </svg>
   );
 }
@@ -291,7 +293,7 @@ function ListIcon({ active }) {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
       stroke={active ? "#185FA5" : "currentColor"} strokeWidth="1.5">
-      <path d="M2 4h12M2 8h8M2 12h5"/>
+      <path d="M2 4h12M2 8h8M2 12h5" />
     </svg>
   );
 }
@@ -299,8 +301,8 @@ function MailIcon({ active }) {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
       stroke={active ? "#185FA5" : "currentColor"} strokeWidth="1.5">
-      <rect x="1" y="3" width="14" height="10" rx="1"/>
-      <path d="M1 5l7 5 7-5"/>
+      <rect x="1" y="3" width="14" height="10" rx="1" />
+      <path d="M1 5l7 5 7-5" />
     </svg>
   );
 }
@@ -308,9 +310,9 @@ function UsersIcon({ active }) {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
       stroke={active ? "#185FA5" : "currentColor"} strokeWidth="1.5">
-      <circle cx="6" cy="5" r="3"/>
-      <path d="M1 14c0-3 2-5 5-5s5 2 5 5"/>
-      <path d="M11 3a3 3 0 010 4M15 14c0-2-1-4-3-4.5"/>
+      <circle cx="6" cy="5" r="3" />
+      <path d="M1 14c0-3 2-5 5-5s5 2 5 5" />
+      <path d="M11 3a3 3 0 010 4M15 14c0-2-1-4-3-4.5" />
     </svg>
   );
 }
@@ -318,7 +320,7 @@ function ChartIcon({ active }) {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
       stroke={active ? "#185FA5" : "currentColor"} strokeWidth="1.5">
-      <path d="M2 12V8l4-4 4 4 4-4v8"/>
+      <path d="M2 12V8l4-4 4 4 4-4v8" />
     </svg>
   );
 }
