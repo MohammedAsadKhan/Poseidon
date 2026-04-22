@@ -1,17 +1,16 @@
-# ─────────────────────────────────────────
-# Poseidon - Git Attributes
-# Controls GitHub language detection
-# CSS and HTML are suppressed since they are
-# minor supporting files, not core logic.
-# Rust and JavaScript remain visible and
-# accurately represent the project stack.
-# ─────────────────────────────────────────
+dashboard/vite.config.js        linguist-vendored
+dashboard/postcss.config.js     linguist-vendored
+dashboard/tailwind.config.js    linguist-vendored
+dashboard/eslint.config.js      linguist-vendored
 
-# Suppress from language stats
+# CSS - styling only, not core logic
 *.css  linguist-vendored
+
+# HTML - single index.html entry point, not logic
 *.html linguist-vendored
 
-# Explicitly mark core languages
+# Explicitly mark core languages so they
+# always show up in the language bar
 *.rs  linguist-language=Rust
 *.jsx linguist-language=JavaScript
 *.js  linguist-language=JavaScript
