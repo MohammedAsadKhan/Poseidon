@@ -8,8 +8,8 @@ services:
     container_name: poseidon-engine
     restart: unless-stopped
     ports:
-      - "${ENGINE_PORT:-8080}:8080"       # REST API
-      - "${METRICS_PORT:-9090}:9090"      # Prometheus metrics
+      - "${ENGINE_PORT:-8080}:8080"
+      - "${METRICS_PORT:-9090}:9090"
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - SMTP_HOST=${SMTP_HOST}
@@ -17,6 +17,7 @@ services:
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASS=${SMTP_PASS}
       - TRACKER_BASE_URL=${TRACKER_BASE_URL}
+      - TRACKER_SECRET=${TRACKER_SECRET}
       - OLLAMA_BASE_URL=http://ollama:11434
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.1:8b}
       - MOCK_AI=${MOCK_AI:-false}
@@ -28,6 +29,12 @@ services:
       - ollama
     networks:
       - poseidon-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "poseidon-engine"
 
   # ─────────────────────────────────────────
   # React dashboard
@@ -40,6 +47,7 @@ services:
       - "${DASHBOARD_PORT:-3000}:3000"
     environment:
       - VITE_API_URL=http://localhost:${ENGINE_PORT:-8080}
+      - VITE_MOCK_AI=${MOCK_AI:-false}
     depends_on:
       - engine
     networks:
@@ -101,6 +109,7 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
       - "--storage.tsdb.retention.time=30d"
+      - "--web.enable-lifecycle"
     networks:
       - poseidon-net
 
@@ -121,6 +130,25 @@ services:
       - poseidon-net
 
   # ─────────────────────────────────────────
+  # Promtail - ships Docker logs into Loki
+  # Watches all container stdout and forwards
+  # to Loki with container name as label
+  # ─────────────────────────────────────────
+  promtail:
+    image: grafana/promtail:latest
+    container_name: poseidon-promtail
+    restart: unless-stopped
+    volumes:
+      - ./observability/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - poseidon-net
+
+  # ─────────────────────────────────────────
   # Grafana - dashboards
   # ─────────────────────────────────────────
   grafana:
@@ -133,7 +161,10 @@ services:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
     volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana_data:/var/lib/grafana
     depends_on:
@@ -142,9 +173,6 @@ services:
     networks:
       - poseidon-net
 
-# ─────────────────────────────────────────
-# Named volumes
-# ─────────────────────────────────────────
 volumes:
   engine_data:
   postgres_data:
@@ -153,9 +181,6 @@ volumes:
   grafana_data:
   ollama_data:
 
-# ─────────────────────────────────────────
-# Internal network
-# ─────────────────────────────────────────
 networks:
   poseidon-net:
     driver: bridge

@@ -1,0 +1,70 @@
+# ─────────────────────────────────────────
+# Poseidon - Prometheus Configuration
+# Scrapes engine metrics every 15 seconds
+# Retention: 30 days (set in docker-compose)
+# ─────────────────────────────────────────
+
+global:
+  scrape_interval:     15s   # how often to scrape targets
+  evaluation_interval: 15s   # how often to evaluate rules
+  scrape_timeout:      10s   # timeout per scrape
+
+  # Labels added to every time series scraped
+  external_labels:
+    monitor: "poseidon"
+    env:     "production"
+
+# ─────────────────────────────────────────
+# Scrape targets
+# Each job defines a service to scrape
+# ─────────────────────────────────────────
+scrape_configs:
+
+  # ── Poseidon engine metrics ──────────────
+  # Your Rust engine exposes /metrics on 9090
+  # This is the main source of campaign data
+  - job_name: "poseidon-engine"
+    static_configs:
+      - targets: ["engine:9090"]
+        labels:
+          service:  "poseidon-engine"
+          language: "rust"
+    metrics_path: /metrics
+    scrape_interval: 10s   # scrape engine more frequently
+
+  # ── Prometheus self-monitoring ───────────
+  # Prometheus scrapes itself so you can
+  # monitor the monitor
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          service: "prometheus"
+
+  # ── Loki ────────────────────────────────
+  - job_name: "loki"
+    static_configs:
+      - targets: ["loki:3100"]
+        labels:
+          service: "loki"
+    metrics_path: /metrics
+
+  # ── Grafana ─────────────────────────────
+  - job_name: "grafana"
+    static_configs:
+      - targets: ["grafana:3000"]
+        labels:
+          service: "grafana"
+    metrics_path: /metrics
+
+  # ── Ollama ──────────────────────────────
+  # Ollama exposes basic metrics we can track
+  - job_name: "ollama"
+    static_configs:
+      - targets: ["ollama:11434"]
+        labels:
+          service: "ollama"
+    metrics_path: /metrics
+    # Ollama metrics may not always be available
+    # honor_labels prevents errors if endpoint is missing
+    honor_labels: true
