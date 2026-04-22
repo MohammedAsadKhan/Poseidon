@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import Campaigns from "./components/Campaigns";
-// import Templates from "./components/Templates";
+import Templates from "./components/Templates";
 import Targets from "./components/Targets";
-// import Analytics from "./components/Analytics";
+import Analytics from "./components/Analytics";
 
 
 // ─────────────────────────────────────────
