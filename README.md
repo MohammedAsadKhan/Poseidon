@@ -7,9 +7,9 @@
 
 Much like his domain, Poseidon runs deep:
 
-* 🔱 **Engine** - Rust-powered core that creates, manages and fires phishing campaigns with zero mercy
-* 🌊 **Dashboard** - React web UI for campaign management, template building and target lists
-* 📊 **Observability** - Grafana, Prometheus and Loki stack showing exactly who clicked what and when
+* 🔱 **Engine** - Rust-powered core that creates, manages, and fires phishing campaigns with zero mercy
+* 🌊 **Dashboard** - React web UI for campaign management, template building, and target lists
+* 📊 **Observability** - Grafana, Prometheus, and Loki stack showing exactly who clicked what and when
 
 Built for security teams to test their own organizations. If you're using this anywhere you don't have explicit written authorization, that's not a Poseidon problem, that's a you problem.
 
