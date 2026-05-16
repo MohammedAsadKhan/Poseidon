@@ -77,7 +77,6 @@ hex = "0.4"
 
 [dev-dependencies]
 tokio-test = "0.4"
-axum-test = "0.14"
 
 [profile.release]
 opt-level = 3
