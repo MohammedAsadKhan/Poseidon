@@ -403,43 +403,42 @@ impl CampaignService {
         Ok(event)
     }
 
-    pub async fn stats(&self, campaign_id: Uuid) -> Result<CampaignStats> {
-        let row = sqlx::query!(
-            r#"
-            SELECT
-                COUNT(DISTINCT t.id)                                             AS total_targets,
-                COUNT(*) FILTER (WHERE e.event_type = 'emailsent')              AS emails_sent,
-                COUNT(*) FILTER (WHERE e.event_type = 'emailopened')            AS emails_opened,
-                COUNT(*) FILTER (WHERE e.event_type = 'linkclicked')            AS links_clicked,
-                COUNT(*) FILTER (WHERE e.event_type = 'formsubmitted')          AS forms_submitted,
-                COUNT(*) FILTER (WHERE e.event_type = 'reportedphishing')       AS reported_phishing
-            FROM campaigns c
-            JOIN target_groups tg ON tg.id = c.target_group_id
-            JOIN targets t        ON t.group_id = tg.id
-            LEFT JOIN campaign_events e ON e.campaign_id = c.id AND e.target_id = t.id
-            WHERE c.id = $1
-            "#,
-            campaign_id
-        )
-        .fetch_one(&self.db)
-        .await?;
+   pub async fn stats(&self, campaign_id: Uuid) -> Result<CampaignStats> {
+    let row = sqlx::query_as::<_, (Option<i64>, Option<i64>, Option<i64>, Option<i64>, Option<i64>, Option<i64>)>(
+        r#"
+        SELECT
+            COUNT(DISTINCT t.id),
+            COUNT(*) FILTER (WHERE e.event_type = 'emailsent'),
+            COUNT(*) FILTER (WHERE e.event_type = 'emailopened'),
+            COUNT(*) FILTER (WHERE e.event_type = 'linkclicked'),
+            COUNT(*) FILTER (WHERE e.event_type = 'formsubmitted'),
+            COUNT(*) FILTER (WHERE e.event_type = 'reportedphishing')
+        FROM campaigns c
+        JOIN target_groups tg ON tg.id = c.target_group_id
+        JOIN targets t        ON t.group_id = tg.id
+        LEFT JOIN campaign_events e ON e.campaign_id = c.id AND e.target_id = t.id
+        WHERE c.id = $1
+        "#,
+    )
+    .bind(campaign_id)
+    .fetch_one(&self.db)
+    .await?;
 
-        let sent      = row.emails_sent.unwrap_or(0);
-        let opened    = row.emails_opened.unwrap_or(0);
-        let clicked   = row.links_clicked.unwrap_or(0);
-        let submitted = row.forms_submitted.unwrap_or(0);
+    let sent      = row.1.unwrap_or(0);
+    let opened    = row.2.unwrap_or(0);
+    let clicked   = row.3.unwrap_or(0);
+    let submitted = row.4.unwrap_or(0);
 
-        Ok(CampaignStats {
-            campaign_id,
-            total_targets:     row.total_targets.unwrap_or(0),
-            emails_sent:       sent,
-            emails_opened:     opened,
-            links_clicked:     clicked,
-            forms_submitted:   submitted,
-            reported_phishing: row.reported_phishing.unwrap_or(0),
-            open_rate:         if sent > 0 { opened    as f64 / sent as f64 * 100.0 } else { 0.0 },
-            click_rate:        if sent > 0 { clicked   as f64 / sent as f64 * 100.0 } else { 0.0 },
-            submission_rate:   if sent > 0 { submitted as f64 / sent as f64 * 100.0 } else { 0.0 },
-        })
-    }
+    Ok(CampaignStats {
+        campaign_id,
+        total_targets:     row.0.unwrap_or(0),
+        emails_sent:       sent,
+        emails_opened:     opened,
+        links_clicked:     clicked,
+        forms_submitted:   submitted,
+        reported_phishing: row.5.unwrap_or(0),
+        open_rate:         if sent > 0 { opened    as f64 / sent as f64 * 100.0 } else { 0.0 },
+        click_rate:        if sent > 0 { clicked   as f64 / sent as f64 * 100.0 } else { 0.0 },
+        submission_rate:   if sent > 0 { submitted as f64 / sent as f64 * 100.0 } else { 0.0 },
+    })
 }
