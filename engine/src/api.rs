@@ -2,7 +2,7 @@ use crate::campaign::{CampaignService, CreateCampaignRequest};
 use crate::generator::{CampaignContext, GeneratorService};
 use crate::mailer::{MailerService, SmtpConfig};
 use crate::metrics;
-use crate::tracker::TrackerService;
+use crate::tracker::{TrackerService, TrackerState};
 use crate::AppState;
 use axum::{
     extract::{Path, State},
@@ -20,43 +20,42 @@ use uuid::Uuid;
 
 // ─────────────────────────────────────────
 // Standard API response envelope
-// Every endpoint returns this shape so the
-// dashboard always knows what to expect
 // ─────────────────────────────────────────
 #[derive(Serialize)]
 pub struct ApiResponse<T: Serialize> {
     pub success: bool,
-    pub data: Option<T>,
-    pub error: Option<String>,
+    pub data:    Option<T>,
+    pub error:   Option<String>,
 }
 
 impl<T: Serialize> ApiResponse<T> {
     pub fn ok(data: T) -> Json<Self> {
-        Json(Self {
-            success: true,
-            data: Some(data),
-            error: None,
-        })
+        Json(Self { success: true, data: Some(data), error: None })
     }
+}
 
-    pub fn err(message: impl Into<String>) -> Json<ApiResponse<()>> {
-        Json(ApiResponse {
-            success: false,
-            data: None,
-            error: Some(message.into()),
-        })
-    }
+// Separate error constructor that returns a concrete type
+fn api_err(message: impl Into<String>) -> Json<ApiResponse<()>> {
+    Json(ApiResponse { success: false, data: None, error: Some(message.into()) })
+}
+
+// ─────────────────────────────────────────
+// Shared handler state
+// ─────────────────────────────────────────
+#[derive(Clone)]
+pub struct ApiState {
+    pub campaigns: Arc<CampaignService>,
+    pub generator: Arc<GeneratorService>,
+    pub tracker:   Arc<TrackerService>,
+    pub mailer:    Arc<MailerService>,
 }
 
 // ─────────────────────────────────────────
 // Build the full router
-// Called from main.rs with shared AppState
 // ─────────────────────────────────────────
 pub fn router(state: AppState) -> Router {
-    // Initialize metrics on first router build
     metrics::init_metrics();
 
-    // Wire up all services into shared state
     let campaign_service = Arc::new(CampaignService::new(state.db.clone()));
 
     let generator_service = Arc::new(GeneratorService::new(
@@ -76,8 +75,8 @@ pub fn router(state: AppState) -> Router {
     ));
 
     let smtp_config = SmtpConfig {
-        host: state.config.smtp_host.clone(),
-        port: state.config.smtp_port,
+        host:     state.config.smtp_host.clone(),
+        port:     state.config.smtp_port,
         username: state.config.smtp_user.clone(),
         password: state.config.smtp_pass.clone(),
     };
@@ -90,19 +89,29 @@ pub fn router(state: AppState) -> Router {
         campaign_service.clone(),
     ));
 
-    // API state passed to every handler
     let api_state = ApiState {
-        campaigns: campaign_service,
+        campaigns: campaign_service.clone(),
         generator: generator_service,
-        tracker: tracker_service,
-        mailer: mailer_service,
+        tracker:   tracker_service.clone(),
+        mailer:    mailer_service,
     };
 
-    Router::new()
-        // ── Health ──────────────────────────────
-        .route("/health", get(health_handler))
+    // Tracker state for the tracking endpoints
+    let tracker_state = TrackerState {
+        tracker:   tracker_service,
+        campaigns: campaign_service,
+    };
 
-        // ── Campaigns ───────────────────────────
+    // Tracking routes use TrackerState
+    let tracking_router = Router::new()
+        .route("/t/o/:token", get(crate::tracker::handle_open))
+        .route("/t/c/:token", get(crate::tracker::handle_click))
+        .route("/t/s/:token", post(crate::tracker::handle_submission))
+        .with_state(tracker_state);
+
+    // API routes use ApiState
+    let api_router = Router::new()
+        .route("/health", get(health_handler))
         .route("/api/campaigns", get(list_campaigns))
         .route("/api/campaigns", post(create_campaign))
         .route("/api/campaigns/:id", get(get_campaign))
@@ -110,39 +119,19 @@ pub fn router(state: AppState) -> Router {
         .route("/api/campaigns/:id/pause", post(pause_campaign))
         .route("/api/campaigns/:id/complete", post(complete_campaign))
         .route("/api/campaigns/:id/stats", get(get_campaign_stats))
+        .with_state(api_state);
 
-        // ── Tracking (hit by target email clients) ──
-        .route("/t/o/:token", get(crate::tracker::handle_open))
-        .route("/t/c/:token", get(crate::tracker::handle_click))
-        .route("/t/s/:token", post(crate::tracker::handle_submission))
-
-        // ── Middleware ──────────────────────────
-        .layer(
-            CorsLayer::new()
-                .allow_origin(Any)
-                .allow_methods(Any)
-                .allow_headers(Any),
-        )
+    Router::new()
+        .merge(api_router)
+        .merge(tracking_router)
+        .layer(CorsLayer::new().allow_origin(Any).allow_methods(Any).allow_headers(Any))
         .layer(TraceLayer::new_for_http())
-        .with_state(api_state)
-}
-
-// ─────────────────────────────────────────
-// Shared handler state
-// ─────────────────────────────────────────
-#[derive(Clone)]
-pub struct ApiState {
-    pub campaigns: Arc<CampaignService>,
-    pub generator: Arc<GeneratorService>,
-    pub tracker: Arc<TrackerService>,
-    pub mailer: Arc<MailerService>,
 }
 
 // ─────────────────────────────────────────
 // Handlers
 // ─────────────────────────────────────────
 
-// GET /health
 async fn health_handler() -> impl IntoResponse {
     Json(serde_json::json!({
         "status": "ok",
@@ -151,48 +140,43 @@ async fn health_handler() -> impl IntoResponse {
     }))
 }
 
-// GET /api/campaigns
 async fn list_campaigns(State(state): State<ApiState>) -> impl IntoResponse {
     match state.campaigns.list().await {
-        Ok(campaigns) => ApiResponse::ok(campaigns).into_response(),
+        Ok(c)  => ApiResponse::ok(c).into_response(),
         Err(e) => {
             error!(error = %e, "failed to list campaigns");
-            (StatusCode::INTERNAL_SERVER_ERROR, ApiResponse::err(e.to_string())).into_response()
+            (StatusCode::INTERNAL_SERVER_ERROR, api_err(e.to_string())).into_response()
         }
     }
 }
 
-// POST /api/campaigns
 async fn create_campaign(
     State(state): State<ApiState>,
     Json(req): Json<CreateCampaignRequest>,
 ) -> impl IntoResponse {
     match state.campaigns.create(req).await {
-        Ok(campaign) => (StatusCode::CREATED, ApiResponse::ok(campaign)).into_response(),
+        Ok(c)  => (StatusCode::CREATED, ApiResponse::ok(c)).into_response(),
         Err(e) => {
             error!(error = %e, "failed to create campaign");
-            (StatusCode::INTERNAL_SERVER_ERROR, ApiResponse::err(e.to_string())).into_response()
+            (StatusCode::INTERNAL_SERVER_ERROR, api_err(e.to_string())).into_response()
         }
     }
 }
 
-// GET /api/campaigns/:id
 async fn get_campaign(
     Path(id): Path<Uuid>,
     State(state): State<ApiState>,
 ) -> impl IntoResponse {
     match state.campaigns.get(id).await {
-        Ok(Some(campaign)) => ApiResponse::ok(campaign).into_response(),
-        Ok(None) => (StatusCode::NOT_FOUND, ApiResponse::err("campaign not found")).into_response(),
-        Err(e) => {
+        Ok(Some(c)) => ApiResponse::ok(c).into_response(),
+        Ok(None)    => (StatusCode::NOT_FOUND, api_err("campaign not found")).into_response(),
+        Err(e)      => {
             error!(error = %e, campaign_id = %id, "failed to get campaign");
-            (StatusCode::INTERNAL_SERVER_ERROR, ApiResponse::err(e.to_string())).into_response()
+            (StatusCode::INTERNAL_SERVER_ERROR, api_err(e.to_string())).into_response()
         }
     }
 }
 
-// POST /api/campaigns/:id/launch
-// Transitions campaign to active and fires all emails
 #[derive(Deserialize)]
 struct LaunchRequest {
     theme: String,
@@ -203,115 +187,82 @@ async fn launch_campaign(
     State(state): State<ApiState>,
     Json(req): Json<LaunchRequest>,
 ) -> impl IntoResponse {
-    // Transition to active in the database first
     let campaign = match state.campaigns.launch(id).await {
-        Ok(c) => c,
+        Ok(c)  => c,
         Err(e) => {
             error!(error = %e, campaign_id = %id, "failed to launch campaign");
-            return (StatusCode::BAD_REQUEST, ApiResponse::err(e.to_string())).into_response();
+            return (StatusCode::BAD_REQUEST, api_err(e.to_string())).into_response();
         }
     };
 
-    // Update metrics
-    metrics::record_campaign_status(
-        &campaign.id.to_string(),
-        &campaign.name,
-        "active",
-        true,
-    );
+    metrics::record_campaign_status(&campaign.id.to_string(), &campaign.name, "active", true);
 
-    // Build context for the generator and mailer
     let context = CampaignContext {
         campaign_name: campaign.name.clone(),
-        from_name: campaign.from_name.clone(),
-        from_email: campaign.from_email.clone(),
-        theme: req.theme,
-        redirect_url: campaign
-            .redirect_url
-            .clone()
-            .unwrap_or_else(|| "/awareness".to_string()),
+        from_name:     campaign.from_name.clone(),
+        from_email:    campaign.from_email.clone(),
+        theme:         req.theme,
+        redirect_url:  campaign.redirect_url.clone().unwrap_or_else(|| "/awareness".to_string()),
     };
 
-    // Fire the campaign in a background task so the API
-    // responds immediately without waiting for all sends
-    let mailer = state.mailer.clone();
+    let mailer      = state.mailer.clone();
     let campaign_id = campaign.id;
 
     tokio::spawn(async move {
         match mailer.fire_campaign(campaign_id, context).await {
             Ok(results) => {
-                let sent = results.iter().filter(|r| r.success).count();
+                let sent   = results.iter().filter(|r| r.success).count();
                 let failed = results.iter().filter(|r| !r.success).count();
-                tracing::info!(
-                    campaign_id = %campaign_id,
-                    sent = sent,
-                    failed = failed,
-                    "campaign fire complete"
-                );
+                tracing::info!(campaign_id = %campaign_id, sent, failed, "campaign fire complete");
             }
-            Err(e) => {
-                error!(campaign_id = %campaign_id, error = %e, "campaign fire failed");
-            }
+            Err(e) => error!(campaign_id = %campaign_id, error = %e, "campaign fire failed"),
         }
     });
 
     ApiResponse::ok(campaign).into_response()
 }
 
-// POST /api/campaigns/:id/pause
 async fn pause_campaign(
     Path(id): Path<Uuid>,
     State(state): State<ApiState>,
 ) -> impl IntoResponse {
     match state.campaigns.pause(id).await {
-        Ok(campaign) => {
-            metrics::record_campaign_status(
-                &campaign.id.to_string(),
-                &campaign.name,
-                "paused",
-                false,
-            );
-            ApiResponse::ok(campaign).into_response()
+        Ok(c) => {
+            metrics::record_campaign_status(&c.id.to_string(), &c.name, "paused", false);
+            ApiResponse::ok(c).into_response()
         }
         Err(e) => {
             error!(error = %e, campaign_id = %id, "failed to pause campaign");
-            (StatusCode::BAD_REQUEST, ApiResponse::err(e.to_string())).into_response()
+            (StatusCode::BAD_REQUEST, api_err(e.to_string())).into_response()
         }
     }
 }
 
-// POST /api/campaigns/:id/complete
 async fn complete_campaign(
     Path(id): Path<Uuid>,
     State(state): State<ApiState>,
 ) -> impl IntoResponse {
     match state.campaigns.complete(id).await {
-        Ok(campaign) => {
-            metrics::record_campaign_status(
-                &campaign.id.to_string(),
-                &campaign.name,
-                "completed",
-                false,
-            );
-            ApiResponse::ok(campaign).into_response()
+        Ok(c) => {
+            metrics::record_campaign_status(&c.id.to_string(), &c.name, "completed", false);
+            ApiResponse::ok(c).into_response()
         }
         Err(e) => {
             error!(error = %e, campaign_id = %id, "failed to complete campaign");
-            (StatusCode::BAD_REQUEST, ApiResponse::err(e.to_string())).into_response()
+            (StatusCode::BAD_REQUEST, api_err(e.to_string())).into_response()
         }
     }
 }
 
-// GET /api/campaigns/:id/stats
 async fn get_campaign_stats(
     Path(id): Path<Uuid>,
     State(state): State<ApiState>,
 ) -> impl IntoResponse {
     match state.campaigns.stats(id).await {
-        Ok(stats) => ApiResponse::ok(stats).into_response(),
+        Ok(s)  => ApiResponse::ok(s).into_response(),
         Err(e) => {
             error!(error = %e, campaign_id = %id, "failed to get campaign stats");
-            (StatusCode::INTERNAL_SERVER_ERROR, ApiResponse::err(e.to_string())).into_response()
+            (StatusCode::INTERNAL_SERVER_ERROR, api_err(e.to_string())).into_response()
         }
     }
 }
