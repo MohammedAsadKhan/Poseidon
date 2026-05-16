@@ -1,0 +1,119 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE campaigns\n            SET status = 'paused', updated_at = NOW()\n            WHERE id = $1 AND status = 'active'\n            RETURNING *\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "status",
+        "type_info": {
+          "Custom": {
+            "name": "campaign_status",
+            "kind": {
+              "Enum": [
+                "draft",
+                "active",
+                "paused",
+                "completed",
+                "archived"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "from_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "from_email",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "subject",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "template_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 8,
+        "name": "target_group_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 9,
+        "name": "redirect_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "scheduled_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "launched_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 12,
+        "name": "completed_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 13,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 14,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "a7cd8e6e61e35d61c07396d1e42f60762cebd455b7ba1ced083372d5166822e2"
+}

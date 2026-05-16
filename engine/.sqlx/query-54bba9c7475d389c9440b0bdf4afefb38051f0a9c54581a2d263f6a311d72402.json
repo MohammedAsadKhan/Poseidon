@@ -1,0 +1,128 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO campaigns (\n                id, name, description, status, from_name, from_email,\n                subject, template_id, target_group_id, redirect_url,\n                scheduled_at, created_at, updated_at\n            )\n            VALUES (\n                $1, $2, $3, 'draft', $4, $5,\n                $6, $7, $8, $9,\n                $10, NOW(), NOW()\n            )\n            RETURNING *\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "status",
+        "type_info": {
+          "Custom": {
+            "name": "campaign_status",
+            "kind": {
+              "Enum": [
+                "draft",
+                "active",
+                "paused",
+                "completed",
+                "archived"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "from_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "from_email",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "subject",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "template_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 8,
+        "name": "target_group_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 9,
+        "name": "redirect_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "scheduled_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "launched_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 12,
+        "name": "completed_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 13,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 14,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "54bba9c7475d389c9440b0bdf4afefb38051f0a9c54581a2d263f6a311d72402"
+}

@@ -10,20 +10,16 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Copy dependency files first for layer caching
+# Cache dependencies first
 COPY Cargo.toml Cargo.lock* ./
-
-# Dummy build to cache dependencies
 RUN mkdir src && echo "fn main() {}" > src/main.rs
-RUN SQLX_OFFLINE=true cargo build --release
+RUN cargo build --release
 RUN rm -f target/release/deps/poseidon*
 
-# Copy real source and migrations
+# Build real binary
 COPY src ./src
 COPY migrations ./migrations
-
-# SQLX_OFFLINE=true means sqlx macros don't need a live DB at compile time
-RUN SQLX_OFFLINE=true cargo build --release
+RUN cargo build --release
 
 # ─────────────────────────────────────────
 # Stage 2: Runtime
@@ -40,8 +36,7 @@ WORKDIR /app
 COPY --from=builder /app/target/release/poseidon ./poseidon
 COPY --from=builder /app/migrations ./migrations
 
-RUN useradd -r -s /bin/false poseidon
-RUN chown -R poseidon:poseidon /app
+RUN useradd -r -s /bin/false poseidon && chown -R poseidon:poseidon /app
 USER poseidon
 
 EXPOSE 8080

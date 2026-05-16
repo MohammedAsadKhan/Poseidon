@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                COUNT(DISTINCT t.id)                                            AS total_targets,\n                COUNT(*) FILTER (WHERE e.event_type = 'emailsent')             AS emails_sent,\n                COUNT(*) FILTER (WHERE e.event_type = 'emailopened')           AS emails_opened,\n                COUNT(*) FILTER (WHERE e.event_type = 'linkclicked')           AS links_clicked,\n                COUNT(*) FILTER (WHERE e.event_type = 'formsubmitted')         AS forms_submitted,\n                COUNT(*) FILTER (WHERE e.event_type = 'reportedphishing')      AS reported_phishing\n            FROM campaigns c\n            JOIN target_groups tg ON tg.id = c.target_group_id\n            JOIN targets t ON t.group_id = tg.id\n            LEFT JOIN campaign_events e ON e.campaign_id = c.id AND e.target_id = t.id\n            WHERE c.id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "total_targets",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "emails_sent",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "emails_opened",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "links_clicked",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "forms_submitted",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "reported_phishing",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "1db9fbb2eeee724e0d35fe93d7c890a58e43ff4d0fc8286259c6035d6a03d81d"
+}
