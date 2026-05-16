@@ -6,8 +6,7 @@ use tracing::{info, warn};
 use uuid::Uuid;
 
 // ─────────────────────────────────────────
-// Campaign status lifecycle
-// Using String in DB queries, deserialize manually
+// Enums
 // ─────────────────────────────────────────
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -40,14 +39,11 @@ impl std::str::FromStr for CampaignStatus {
             "paused"    => Ok(CampaignStatus::Paused),
             "completed" => Ok(CampaignStatus::Completed),
             "archived"  => Ok(CampaignStatus::Archived),
-            _           => Err(anyhow::anyhow!("unknown campaign status: {}", s)),
+            _           => Err(anyhow::anyhow!("unknown status: {}", s)),
         }
     }
 }
 
-// ─────────────────────────────────────────
-// Event type
-// ─────────────────────────────────────────
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum EventType {
@@ -61,17 +57,17 @@ pub enum EventType {
 impl std::fmt::Display for EventType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            EventType::EmailSent       => write!(f, "emailsent"),
-            EventType::EmailOpened     => write!(f, "emailopened"),
-            EventType::LinkClicked     => write!(f, "linkclicked"),
-            EventType::FormSubmitted   => write!(f, "formsubmitted"),
+            EventType::EmailSent        => write!(f, "emailsent"),
+            EventType::EmailOpened      => write!(f, "emailopened"),
+            EventType::LinkClicked      => write!(f, "linkclicked"),
+            EventType::FormSubmitted    => write!(f, "formsubmitted"),
             EventType::ReportedPhishing => write!(f, "reportedphishing"),
         }
     }
 }
 
 // ─────────────────────────────────────────
-// Raw DB row for Campaign (uses String for enums)
+// Raw DB rows (enums stored as TEXT)
 // ─────────────────────────────────────────
 #[derive(sqlx::FromRow)]
 struct CampaignRow {
@@ -114,47 +110,6 @@ impl CampaignRow {
     }
 }
 
-// ─────────────────────────────────────────
-// Core campaign model (public API)
-// ─────────────────────────────────────────
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Campaign {
-    pub id:              Uuid,
-    pub name:            String,
-    pub description:     Option<String>,
-    pub status:          CampaignStatus,
-    pub from_name:       String,
-    pub from_email:      String,
-    pub subject:         String,
-    pub template_id:     Uuid,
-    pub target_group_id: Uuid,
-    pub redirect_url:    Option<String>,
-    pub scheduled_at:    Option<DateTime<Utc>>,
-    pub launched_at:     Option<DateTime<Utc>>,
-    pub completed_at:    Option<DateTime<Utc>>,
-    pub created_at:      DateTime<Utc>,
-    pub updated_at:      DateTime<Utc>,
-}
-
-// ─────────────────────────────────────────
-// Request body for creating a campaign
-// ─────────────────────────────────────────
-#[derive(Debug, Deserialize)]
-pub struct CreateCampaignRequest {
-    pub name:            String,
-    pub description:     Option<String>,
-    pub from_name:       String,
-    pub from_email:      String,
-    pub subject:         String,
-    pub template_id:     Uuid,
-    pub target_group_id: Uuid,
-    pub redirect_url:    Option<String>,
-    pub scheduled_at:    Option<DateTime<Utc>>,
-}
-
-// ─────────────────────────────────────────
-// Campaign event raw row
-// ─────────────────────────────────────────
 #[derive(sqlx::FromRow)]
 struct CampaignEventRow {
     pub id:          Uuid,
@@ -191,8 +146,40 @@ impl CampaignEventRow {
 }
 
 // ─────────────────────────────────────────
-// Campaign event public model
+// Public models
 // ─────────────────────────────────────────
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Campaign {
+    pub id:              Uuid,
+    pub name:            String,
+    pub description:     Option<String>,
+    pub status:          CampaignStatus,
+    pub from_name:       String,
+    pub from_email:      String,
+    pub subject:         String,
+    pub template_id:     Uuid,
+    pub target_group_id: Uuid,
+    pub redirect_url:    Option<String>,
+    pub scheduled_at:    Option<DateTime<Utc>>,
+    pub launched_at:     Option<DateTime<Utc>>,
+    pub completed_at:    Option<DateTime<Utc>>,
+    pub created_at:      DateTime<Utc>,
+    pub updated_at:      DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateCampaignRequest {
+    pub name:            String,
+    pub description:     Option<String>,
+    pub from_name:       String,
+    pub from_email:      String,
+    pub subject:         String,
+    pub template_id:     Uuid,
+    pub target_group_id: Uuid,
+    pub redirect_url:    Option<String>,
+    pub scheduled_at:    Option<DateTime<Utc>>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CampaignEvent {
     pub id:          Uuid,
@@ -205,9 +192,6 @@ pub struct CampaignEvent {
     pub occurred_at: DateTime<Utc>,
 }
 
-// ─────────────────────────────────────────
-// Target
-// ─────────────────────────────────────────
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Target {
     pub id:         Uuid,
@@ -220,9 +204,6 @@ pub struct Target {
     pub created_at: DateTime<Utc>,
 }
 
-// ─────────────────────────────────────────
-// Target group
-// ─────────────────────────────────────────
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct TargetGroup {
     pub id:          Uuid,
@@ -231,9 +212,6 @@ pub struct TargetGroup {
     pub created_at:  DateTime<Utc>,
 }
 
-// ─────────────────────────────────────────
-// Campaign stats
-// ─────────────────────────────────────────
 #[derive(Debug, Serialize)]
 pub struct CampaignStats {
     pub campaign_id:       Uuid,
@@ -248,15 +226,28 @@ pub struct CampaignStats {
     pub submission_rate:   f64,
 }
 
+// Stats row for the aggregate query
+#[derive(sqlx::FromRow)]
+struct StatsRow {
+    total_targets:     Option<i64>,
+    emails_sent:       Option<i64>,
+    emails_opened:     Option<i64>,
+    links_clicked:     Option<i64>,
+    forms_submitted:   Option<i64>,
+    reported_phishing: Option<i64>,
+}
+
 // ─────────────────────────────────────────
-// Database operations
+// Service
 // ─────────────────────────────────────────
 pub struct CampaignService {
     db: PgPool,
 }
 
 impl CampaignService {
-    pub fn new(db: PgPool) -> Self { Self { db } }
+    pub fn new(db: PgPool) -> Self {
+        Self { db }
+    }
 
     pub async fn create(&self, req: CreateCampaignRequest) -> Result<Campaign> {
         let row = sqlx::query_as::<_, CampaignRow>(
@@ -266,7 +257,7 @@ impl CampaignService {
                 subject, template_id, target_group_id, redirect_url,
                 scheduled_at, created_at, updated_at
             )
-            VALUES ($1, $2, $3, 'draft', $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+            VALUES ($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,NOW(),NOW())
             RETURNING *
             "#,
         )
@@ -379,7 +370,7 @@ impl CampaignService {
                 id, campaign_id, target_id, event_type,
                 ip_address, user_agent, payload, occurred_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+            VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())
             RETURNING *
             "#,
         )
@@ -403,42 +394,43 @@ impl CampaignService {
         Ok(event)
     }
 
-   pub async fn stats(&self, campaign_id: Uuid) -> Result<CampaignStats> {
-    let row = sqlx::query_as::<_, (Option<i64>, Option<i64>, Option<i64>, Option<i64>, Option<i64>, Option<i64>)>(
-        r#"
-        SELECT
-            COUNT(DISTINCT t.id),
-            COUNT(*) FILTER (WHERE e.event_type = 'emailsent'),
-            COUNT(*) FILTER (WHERE e.event_type = 'emailopened'),
-            COUNT(*) FILTER (WHERE e.event_type = 'linkclicked'),
-            COUNT(*) FILTER (WHERE e.event_type = 'formsubmitted'),
-            COUNT(*) FILTER (WHERE e.event_type = 'reportedphishing')
-        FROM campaigns c
-        JOIN target_groups tg ON tg.id = c.target_group_id
-        JOIN targets t        ON t.group_id = tg.id
-        LEFT JOIN campaign_events e ON e.campaign_id = c.id AND e.target_id = t.id
-        WHERE c.id = $1
-        "#,
-    )
-    .bind(campaign_id)
-    .fetch_one(&self.db)
-    .await?;
+    pub async fn stats(&self, campaign_id: Uuid) -> Result<CampaignStats> {
+        let row = sqlx::query_as::<_, StatsRow>(
+            r#"
+            SELECT
+                COUNT(DISTINCT t.id)                                            AS total_targets,
+                COUNT(*) FILTER (WHERE e.event_type = 'emailsent')             AS emails_sent,
+                COUNT(*) FILTER (WHERE e.event_type = 'emailopened')           AS emails_opened,
+                COUNT(*) FILTER (WHERE e.event_type = 'linkclicked')           AS links_clicked,
+                COUNT(*) FILTER (WHERE e.event_type = 'formsubmitted')         AS forms_submitted,
+                COUNT(*) FILTER (WHERE e.event_type = 'reportedphishing')      AS reported_phishing
+            FROM campaigns c
+            JOIN target_groups tg ON tg.id = c.target_group_id
+            JOIN targets t        ON t.group_id = tg.id
+            LEFT JOIN campaign_events e ON e.campaign_id = c.id AND e.target_id = t.id
+            WHERE c.id = $1
+            "#,
+        )
+        .bind(campaign_id)
+        .fetch_one(&self.db)
+        .await?;
 
-    let sent      = row.1.unwrap_or(0);
-    let opened    = row.2.unwrap_or(0);
-    let clicked   = row.3.unwrap_or(0);
-    let submitted = row.4.unwrap_or(0);
+        let sent      = row.emails_sent.unwrap_or(0);
+        let opened    = row.emails_opened.unwrap_or(0);
+        let clicked   = row.links_clicked.unwrap_or(0);
+        let submitted = row.forms_submitted.unwrap_or(0);
 
-    Ok(CampaignStats {
-        campaign_id,
-        total_targets:     row.0.unwrap_or(0),
-        emails_sent:       sent,
-        emails_opened:     opened,
-        links_clicked:     clicked,
-        forms_submitted:   submitted,
-        reported_phishing: row.5.unwrap_or(0),
-        open_rate:         if sent > 0 { opened    as f64 / sent as f64 * 100.0 } else { 0.0 },
-        click_rate:        if sent > 0 { clicked   as f64 / sent as f64 * 100.0 } else { 0.0 },
-        submission_rate:   if sent > 0 { submitted as f64 / sent as f64 * 100.0 } else { 0.0 },
-    })
+        Ok(CampaignStats {
+            campaign_id,
+            total_targets:     row.total_targets.unwrap_or(0),
+            emails_sent:       sent,
+            emails_opened:     opened,
+            links_clicked:     clicked,
+            forms_submitted:   submitted,
+            reported_phishing: row.reported_phishing.unwrap_or(0),
+            open_rate:         if sent > 0 { opened    as f64 / sent as f64 * 100.0 } else { 0.0 },
+            click_rate:        if sent > 0 { clicked   as f64 / sent as f64 * 100.0 } else { 0.0 },
+            submission_rate:   if sent > 0 { submitted as f64 / sent as f64 * 100.0 } else { 0.0 },
+        })
+    }
 }
